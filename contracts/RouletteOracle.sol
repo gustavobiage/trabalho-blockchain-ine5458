@@ -10,7 +10,7 @@ contract RouletteOracle is Roulette {
     /**
      * Oráculo
      */
-     VRFv2Consumer oracle;
+     VRFv2Consumer private oracle;
 
     /**
      * Construtor;
