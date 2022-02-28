@@ -1,7 +1,6 @@
-
-// SPDX-License-Identifier: GPL-3.0
-
-pragma solidity >= 0.7.0 < 0.9.0;
+// SPDX-License-Identifier: MIT
+// An example of a consumer contract that relies on a subscription for funding.
+pragma solidity ^0.8.7;
 
 import "./Roulette.sol";
 import "./Oracle.sol";
@@ -10,7 +9,7 @@ contract RouletteOracle is Roulette {
     /**
      * Oráculo
      */
-     VRFv2Consumer private oracle;
+     VRFv2Consumer public oracle;
 
     /**
      * Construtor;
@@ -20,16 +19,20 @@ contract RouletteOracle is Roulette {
      * @param gameDuration Duração que o contrato se encontra aberto para apostas
      */
     constructor(uint c, uint token_, uint tax_, uint gameDuration, uint64 subscriptionId) payable Roulette(c, token_, tax_, gameDuration) {
-        oracle = new VRFv2Consumer(subscriptionId);
+        oracle = new VRFv2Consumer(msg.sender, subscriptionId);
     }
 
-    function selectColor() internal override returns(uint) {
-        oracle.requestRandomWords();
-        uint256 randomValue = oracle.s_randomWords(0);
+    function selectColor() internal view override returns(uint) {
+        uint256 randomValue = oracle.s_randomWord();
         return randomValue % nColors;
     }
 
+    function contactOracle() external {
+        require(block.number > validUntil, "O periodo de apostas ainda nao acabou");
+        oracle.requestRandomWords();
+    }
+
     function hasEnded() public view override returns(bool) {
-        return block.number > validUntil;
+        return oracle.stored() && block.number > validUntil;
     }
 }

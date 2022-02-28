@@ -40,19 +40,25 @@ contract VRFv2Consumer is VRFConsumerBaseV2 {
     // Cannot exceed VRFCoordinatorV2.MAX_NUM_WORDS.
     uint32 numWords =  1;
 
-    uint256[] public s_randomWords;
+    /**
+     * Registra que o valor foi gerado.
+     */
+    bool public stored;
+
+    uint256 public s_randomWord;
     uint256 public s_requestId;
     address s_owner;
 
-    constructor(uint64 subscriptionId) VRFConsumerBaseV2(vrfCoordinator) {
+    constructor(address sender, uint64 subscriptionId) VRFConsumerBaseV2(vrfCoordinator) {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         LINKTOKEN = LinkTokenInterface(link);
-        s_owner = msg.sender;
+        s_owner = sender;
         s_subscriptionId = subscriptionId;
+        stored = false;
     }
 
     // Assumes the subscription is funded sufficiently.
-    function requestRandomWords() external {
+    function requestRandomWords() public {
         // Will revert if subscription is not set and funded.
         s_requestId = COORDINATOR.requestRandomWords(
             keyHash,
@@ -63,7 +69,8 @@ contract VRFv2Consumer is VRFConsumerBaseV2 {
         );
     }
 
-    function fulfillRandomWords(uint256, /* requestId */ uint256[] memory randomWords) internal override {
-        s_randomWords = randomWords;
+    function fulfillRandomWords(uint256, uint256[] memory randomWords) internal override {
+        s_randomWord = randomWords[0];
+        stored = true;
     }
 }
