@@ -65,14 +65,14 @@ contract RouletteColaborativeGeneration is Roulette {
      * @param gameDuration Duração que o contrato se encontra aberto para apostas
      * @param hashDuration Duração da fase de submissões de hash
      * @param valueDuration Duração da fase de submissões de valores
-     * @param cachebackDuration Duração da fase de cacheback dos depósitos
+     * @param cashbackDuration Duração da fase de cashback dos depósitos
      * @param highestValue_ maior valor que pode ser gerado aleatoriamente
      */
     constructor(uint c, uint token_, uint tax_,
         uint gameDuration,
         uint hashDuration,
         uint valueDuration,
-        uint cachebackDuration,
+        uint cashbackDuration,
         uint highestValue_) payable Roulette(c, token_, tax_, gameDuration) {
         /*
          * Se cada duração possuir uma unidade de tempo diferente,
@@ -82,16 +82,16 @@ contract RouletteColaborativeGeneration is Roulette {
          *     Variable headStart is 1 slot(s) too deep inside the stack.
          */
         // assert(timeUnit == TimeUnit.MILLISECONDS);
-        assert(hashDuration > 15000000);
-        assert(valueDuration > 15000000);
-        assert(cachebackDuration > 15000000);
+        require(hashDuration > 15000000, "Periodo (hashDuration) menor que 15 segundos.");
+        require(valueDuration > 15000000, "Periodo (valueDuration) menor que 15 segundos.");
+        require(cashbackDuration > 15000000, "Periodo (cashbackDuration) menor que 15 segundos.");
 
         uint hashNumberOfBlocks = hashDuration / 15000000 + 1;
         hashValidUntil = validUntil + hashNumberOfBlocks;
         uint valueNumberOfBlocks = valueDuration / 15000000 + 1;
         valueValidUntil =  hashValidUntil + valueNumberOfBlocks;
-        uint cachebackNumberOfBlocks = cachebackDuration / 15000000 + 1;
-        cashbackValidUntil = valueValidUntil + cachebackNumberOfBlocks;
+        uint cashbackNumberOfBlocks = cashbackDuration / 15000000 + 1;
+        cashbackValidUntil = valueValidUntil + cashbackNumberOfBlocks;
 
         highestValue = highestValue_;
         totalDeposit = 0;
@@ -100,10 +100,14 @@ contract RouletteColaborativeGeneration is Roulette {
     }
 
     function submmitHash(bytes32 hash) external payable {
-        assert(block.number > validUntil); // O jogo já terminou
-        assert(block.number <= hashValidUntil); // O período de envio de hash ainda não terminou
-        assert(msg.value >= highestValue); // O depósito é maior ou igual ao maior valor possível
-        assert(!submissionMap[msg.sender].submittedHash); // Este endereço ainda não enviou um hash
+         // O jogo já terminou
+        require(block.number > validUntil, "Periodo de apostas ainda nao terminou.");
+        // O período de envio de hash ainda não terminou
+        require(block.number <= hashValidUntil, "Periodo de submissao de hash ainda nao terminou.");
+        // O depósito é maior ou igual ao maior valor possível
+        require(msg.value == highestValue, "Deposito incorreto.");
+        // Este endereço ainda não enviou um hash
+        require(!submissionMap[msg.sender].submittedHash, "Hash ja submetido");
         
         submissionMap[msg.sender].submittedHash = true; // Registra a submissão do hash
         submissionMap[msg.sender].hash = hash; // Armazena o hash submetido
@@ -111,11 +115,16 @@ contract RouletteColaborativeGeneration is Roulette {
     }
 
     function submmitValue(uint value) external payable {
-        assert(block.number > hashValidUntil); // Já terminou a fase de submeter hashes
-        assert(block.number <= valueValidUntil); // Ainda não terminou a fase de submeter valores
-        assert(value <= highestValue); // O valor está no intervalo exigido
-        assert(submissionMap[msg.sender].submittedHash); // Este endereço enviou um hash
-        assert(!submissionMap[msg.sender].submittedValue); // Este endereço ainda não enviou um valor
+        // Já terminou a fase de submeter hashes
+        require(block.number > hashValidUntil, "Periodo de submissao de valor ainda nao comecou.");
+        // Ainda não terminou a fase de submeter valores
+        require(block.number <= valueValidUntil, "Peroodo de submissao de valor ja terminou.");
+        // O valor está no intervalo exigido
+        require(value <= highestValue, "Valor submetido menor que o exigido.");
+        // Este endereço enviou um hash
+        require(submissionMap[msg.sender].submittedHash, "Hash nao submetido.");
+        // Este endereço ainda não enviou um valor
+        require(!submissionMap[msg.sender].submittedValue, "Valor ja submetido.");
         
         bytes32 hash = keccak256(abi.encodePacked(msg.sender, value)); // Obtém o hash do valor e o endereço
         if (hash == submissionMap[msg.sender].hash) { // Compara com o hash submetido
@@ -126,10 +135,14 @@ contract RouletteColaborativeGeneration is Roulette {
     }
 
     function cashbackDeposit() external {
-        assert(block.number > valueValidUntil); // Já terminou a fase de submissão de valores
-        assert(block.number <= cashbackValidUntil); // Ainda está na fase de retirar depósitos
-        assert(submissionMap[msg.sender].submittedValue); // O endereço submeteu um valor
-        assert(!submissionMap[msg.sender].cashedBack); // O endereço ainda não retirou o depósito
+        // Já terminou a fase de submissão de valores
+        require(block.number > valueValidUntil, "Periodo de cashback ainda nao comecou.");
+        // Ainda está na fase de retirar depósitos
+        require(block.number <= cashbackValidUntil, "Periodo de cashback ja terminou");
+        // O endereço submeteu um valor
+        require(submissionMap[msg.sender].submittedValue, "Nenhum valor submetido.");
+        // O endereço ainda não retirou o depósito
+        require(!submissionMap[msg.sender].cashedBack, "Deposito ja retornado.");
 
         uint cashback = totalDeposit / valuesSubmitted; // Divide os depósitos com todo mundo que submeteu
         payable(msg.sender).transfer(cashback); // Transfere a parte pertencente a este endereço
