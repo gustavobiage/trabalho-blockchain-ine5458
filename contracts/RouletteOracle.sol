@@ -9,7 +9,11 @@ contract RouletteOracle is Roulette {
     /**
      * Oráculo
      */
-     VRFv2Consumer public oracle;
+    VRFv2Consumer public oracle;
+    /**
+     * Oráculo contactado
+     */
+    bool public oracleContacted;
 
     /**
      * Construtor;
@@ -20,6 +24,7 @@ contract RouletteOracle is Roulette {
      */
     constructor(uint c, uint token_, uint tax_, uint gameDuration, uint64 subscriptionId) payable Roulette(c, token_, tax_, gameDuration) {
         oracle = new VRFv2Consumer(msg.sender, subscriptionId);
+        oracleContacted = false;
     }
 
     function selectColor() internal view override returns(uint) {
@@ -29,7 +34,9 @@ contract RouletteOracle is Roulette {
 
     function contactOracle() external {
         require(block.number > validUntil, "O periodo de apostas ainda nao acabou");
+        require(!oracleContacted, "Oraculo ja contactado.");
         oracle.requestRandomWords();
+        oracleContacted = true;
     }
 
     function hasEnded() public view override returns(bool) {
