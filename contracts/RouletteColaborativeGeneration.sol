@@ -14,15 +14,15 @@ contract RouletteColaborativeGeneration is Roulette {
     /**
      * Validade da primeira fase.
      */
-    uint private hashValidUntil;
+    uint public hashValidUntil;
     /**
      * Validade da segunda fase.
      */
-    uint private valueValidUntil;
+    uint public valueValidUntil;
      /**
       * Validade da terceira fase
       */
-    uint private cashbackValidUntil;
+    uint public cashbackValidUntil;
     /**
      * Estrutura que armazena dados de submissão de um endereço
      */
@@ -35,27 +35,28 @@ contract RouletteColaborativeGeneration is Roulette {
     /**
      * Mapa que relaciona um endereço aos seus dados de submissão
      */
-    mapping(address => Submission) private submissionMap;
+    mapping(address => Submission) public submissionMap;
 
     /**
      * Highest possible submission
      */
-    uint highestValue;
+    uint public highestValue;
     
     /**
      * Valor total depositado
      */
-    uint totalDeposit;
+    uint public totalDeposit;
     
     /**
      * Total de valores submetidoes
      */
-    uint valuesSubmitted;
+    uint public valuesSubmitted;
 
     /**
      * Valor gerado até o momento;
      */
-    uint generated;
+    uint public generated;
+    
 
     /**
      * Construtor;
@@ -74,14 +75,7 @@ contract RouletteColaborativeGeneration is Roulette {
         uint valueDuration,
         uint cashbackDuration,
         uint highestValue_) payable Roulette(c, token_, tax_, gameDuration) {
-        /*
-         * Se cada duração possuir uma unidade de tempo diferente,
-         * pela quantidade de variáveis, ocorre o erro de compilação:
-         * 
-         *     CompilerError: Stack too deep when compiling inline assembly:
-         *     Variable headStart is 1 slot(s) too deep inside the stack.
-         */
-        // assert(timeUnit == TimeUnit.MILLISECONDS);
+
         require(hashDuration > 15000000, "Periodo (hashDuration) menor que 15 segundos.");
         require(valueDuration > 15000000, "Periodo (valueDuration) menor que 15 segundos.");
         require(cashbackDuration > 15000000, "Periodo (cashbackDuration) menor que 15 segundos.");
@@ -99,12 +93,16 @@ contract RouletteColaborativeGeneration is Roulette {
         generated = 0;
     }
 
+    function getHash(uint value) public view returns(bytes32) {
+        return keccak256(abi.encodePacked(msg.sender, value));
+    }
+
     function submmitHash(bytes32 hash) external payable {
          // O jogo já terminou
         require(block.number > validUntil, "Periodo de apostas ainda nao terminou.");
         // O período de envio de hash ainda não terminou
         require(block.number <= hashValidUntil, "Periodo de submissao de hash ainda nao terminou.");
-        // O depósito é maior ou igual ao maior valor possível
+        // O depósito é igual ao maior valor possível
         require(msg.value == highestValue, "Deposito incorreto.");
         // Este endereço ainda não enviou um hash
         require(!submissionMap[msg.sender].submittedHash, "Hash ja submetido");
@@ -120,7 +118,7 @@ contract RouletteColaborativeGeneration is Roulette {
         // Ainda não terminou a fase de submeter valores
         require(block.number <= valueValidUntil, "Peroodo de submissao de valor ja terminou.");
         // O valor está no intervalo exigido
-        require(value <= highestValue, "Valor submetido menor que o exigido.");
+        require(value <= highestValue, "Valor submetido maior que o exigido.");
         // Este endereço enviou um hash
         require(submissionMap[msg.sender].submittedHash, "Hash nao submetido.");
         // Este endereço ainda não enviou um valor
